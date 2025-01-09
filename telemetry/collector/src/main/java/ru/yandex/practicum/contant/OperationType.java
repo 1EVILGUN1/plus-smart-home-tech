@@ -1,6 +1,6 @@
 package ru.yandex.practicum.contant;
 
-public enum DeviceType {
+public enum OperationType {
     MOTION,
     LUMINOSITY,
     SWITCH,

@@ -75,7 +75,7 @@ public class CollectorService extends Process {
         List<ScenarioConditionAvro> conditionAvros = hubEvent.getConditions().stream()
                 .map(sc -> new ScenarioConditionAvro(sc.getSensorId(),
                         DeviceTypeAvro.valueOf(sc.getType().name()),
-                        ConditionOperationAvro.valueOf(sc.getOperation().name()),
+                        ConditionOperationAvro.valueOf(sc.getOperationCondition().name()),
                         sc.getValue()))
                 .collect(Collectors.toList());
 

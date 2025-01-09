@@ -19,7 +19,7 @@ public class ScenarioAddedEvent extends ScenarioEvent {
 
     @NonNull
     @Size(min = 1)
-    List<DeviceAction> actions;
+    List<DeviceActionEvent> actions;
     @NonNull
     @Size(min = 1)
     List<ScenarioCondition> conditions;

@@ -1,6 +1,6 @@
 package ru.yandex.practicum.contant;
 
-public enum DeviceActionType {
+public enum ActionType {
     ACTIVATE,
     DEACTIVATE,
     INVERSE,
