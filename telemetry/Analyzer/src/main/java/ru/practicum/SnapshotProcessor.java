@@ -27,6 +27,21 @@ public class SnapshotProcessor {
 
     private final SnapshotService service;
 
+    private static void manageOffsets(ConsumerRecord<Void, SensorsSnapshotAvro> record, int count, KafkaConsumer<Void, SensorsSnapshotAvro> consumer) {
+        currentOffsets.put(
+                new TopicPartition(record.topic(), record.partition()),
+                new OffsetAndMetadata(record.offset() + 1)
+        );
+
+        if (count % 10 == 0) {
+            consumer.commitAsync(currentOffsets, (offsets, exception) -> {
+                if (exception != null) {
+                    log.warn("Ошибка во время фиксации оффсетов: {}", offsets, exception);
+                }
+            });
+        }
+    }
+
     public void start() {
         Properties config = getPropertiesConsumerSnapshot();
         KafkaConsumer<Void, SensorsSnapshotAvro> consumer = new KafkaConsumer<>(config);
@@ -103,7 +118,7 @@ public class SnapshotProcessor {
                                 switchSensorEvent.setHubId(record.value().getHubId());
                                 switchSensorEvent.setId(str);
                                 switchSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                                switchSensorEvent.setState(((SwitchSensorAvro)stateAvro.getData()).getState());
+                                switchSensorEvent.setState(((SwitchSensorAvro) stateAvro.getData()).getState());
 
                                 state.setData(switchSensorEvent);
                                 break;
@@ -148,21 +163,6 @@ public class SnapshotProcessor {
         config.put(ConsumerConfig.CLIENT_ID_CONFIG, "SomeConsumer1");
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "some.group.id1");
         return config;
-    }
-
-    private static void manageOffsets(ConsumerRecord<Void, SensorsSnapshotAvro> record, int count, KafkaConsumer<Void, SensorsSnapshotAvro> consumer) {
-        currentOffsets.put(
-                new TopicPartition(record.topic(), record.partition()),
-                new OffsetAndMetadata(record.offset() + 1)
-        );
-
-        if (count % 10 == 0) {
-            consumer.commitAsync(currentOffsets, (offsets, exception) -> {
-                if (exception != null) {
-                    log.warn("Ошибка во время фиксации оффсетов: {}", offsets, exception);
-                }
-            });
-        }
     }
 }
 

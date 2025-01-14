@@ -14,12 +14,12 @@ import static ru.yandex.practicum.grpc.telemetry.event.SensorEventProto.PayloadC
 @Component
 @RequiredArgsConstructor
 public class MotionSensorEventHandler implements SensorEventHandler {
+    private final CollectorService service;
+
     @Override
     public SensorEventProto.PayloadCase getMessageType() {
         return MOTION_SENSOR;
     }
-
-    private final CollectorService service;
 
     @Override
     public void handle(SensorEventProto event) {

@@ -35,6 +35,7 @@ public class EventController extends CollectorControllerGrpc.CollectorController
                         Function.identity()
                 ));
     }
+
     @Override
     public void collectSensorEvent(SensorEventProto request, StreamObserver<Empty> responseObserver) {
         try {
