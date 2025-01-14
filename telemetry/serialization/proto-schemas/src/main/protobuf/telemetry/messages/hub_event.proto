@@ -38,10 +38,13 @@ message DeviceRemovedEventProto {
 
 message ScenarioAddedEventProto{
   string id = 1;
+  string name = 2;
+  repeated ScenarioConditionProto conditions = 3;
+  repeated DeviceActionProto actions = 4;
 }
 
 message ScenarioRemovedEventProto{
-  string id = 1;
+  string name = 1;
 }
 
 enum ActionTypeProto {
@@ -85,6 +88,6 @@ message ScenarioConditionProto {
 message DeviceActionRequest {
   string hub_id = 1;
   string scenario_name = 2;
-  DeviceActionProto action = 3;
+  DeviceActionProto actionEntity = 3;
   google.protobuf.Timestamp timestamp = 4;
 }

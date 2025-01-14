@@ -16,14 +16,14 @@ message SensorEventProto {
     TemperatureSensorProto temperature_sensor = 5;
     LightSensorProto light_sensor = 6;
     ClimateSensorProto climate_sensor = 7;
-    SwitchSensorProto switch_sensor =8;
+    SwitchSensorProto switch_sensor = 8;
   }
 }
 
 message MotionSensorProto{
   int32 link_quality = 1;
   bool motion = 2;
-  int32 voltage =3;
+  int32 voltage = 3;
 }
 
 message TemperatureSensorProto{

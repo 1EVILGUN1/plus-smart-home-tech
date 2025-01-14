@@ -7,35 +7,33 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.contant.HubEventType;
-import ru.yandex.practicum.contant.SensorEventType;
-import ru.yandex.practicum.model.hub.*;
-import ru.yandex.practicum.model.sensor.*;
+import ru.yandex.practicum.*;
 import ru.yandex.practicum.service.CollectorService;
 
 @RestController
-@RequestMapping("/events")
 @RequiredArgsConstructor
 @Slf4j
+@RequestMapping(path = "/events")
 public class CollectorController {
+
     private final CollectorService service;
 
     @PostMapping("/sensors")
     public void processingSensors(@Valid @RequestBody SensorEvent event) {
-        switch (event.getType()) {
-            case SensorEventType.CLIMATE_SENSOR_EVENT:
+        switch (event.getClass().getSimpleName()) {
+            case "ClimateSensorEvent":
                 service.processingSensors((ClimateSensorEvent) event);
                 break;
-            case SensorEventType.LIGHT_SENSOR_EVENT:
+            case "LightSensorEvent":
                 service.processingSensors((LightSensorEvent) event);
                 break;
-            case SensorEventType.MOTION_SENSOR_EVENT:
+            case "MotionSensorEvent":
                 service.processingSensors((MotionSensorEvent) event);
                 break;
-            case SensorEventType.SWITCH_SENSOR_EVENT:
+            case "SwitchSensorEvent":
                 service.processingSensors((SwitchSensorEvent) event);
                 break;
-            case SensorEventType.TEMPERATURE_SENSOR_EVENT:
+            case "TemperatureSensorEvent":
                 service.processingSensors((TemperatureSensorEvent) event);
                 break;
         }
@@ -44,17 +42,17 @@ public class CollectorController {
 
     @PostMapping("/hubs")
     public void processingHubs(@Valid @RequestBody HubEvent event) {
-        switch (event.getType()) {
-            case HubEventType.DEVICE_ADDED:
+        switch (event.getClass().getSimpleName()) {
+            case "DeviceAddedEvent":
                 service.processingHub((DeviceAddedEvent) event);
                 break;
-            case HubEventType.DEVICE_REMOVED:
+            case "DeviceRemovedEvent":
                 service.processingHub((DeviceRemovedEvent) event);
                 break;
-            case HubEventType.SCENARIO_ADDED:
+            case "ScenarioAddedEvent":
                 service.processingHub((ScenarioAddedEvent) event);
                 break;
-            case HubEventType.SCENARIO_REMOVED:
+            case "ScenarioRemovedEvent":
                 service.processingHub((ScenarioRemovedEvent) event);
                 break;
         }
