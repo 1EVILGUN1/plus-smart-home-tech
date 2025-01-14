@@ -15,9 +15,9 @@
     <modules>
         <module>serialization</module>
         <module>collector</module>
-        <module>Analyzer</module>
-        <module>Aggregator</module>
-        <module>event-model</module>
+        <module>event-models</module>
+        <module>aggregator</module>
+        <module>analyzer</module>
     </modules>
 
 </project>

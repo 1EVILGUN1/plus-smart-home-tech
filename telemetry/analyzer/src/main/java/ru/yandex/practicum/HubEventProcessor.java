@@ -7,13 +7,13 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.mapper.ScenarioAddedMapper;
-import ru.yandex.practicum.serialize.HubEventDeserializer;
-import ru.yandex.practicum.service.HubService;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
+import ru.yandex.practicum.mapper.ScenarioAddedMapper;
+import ru.yandex.practicum.serialize.HubEventDeserializer;
+import ru.yandex.practicum.service.HubService;
 
 import java.time.Duration;
 import java.util.HashMap;

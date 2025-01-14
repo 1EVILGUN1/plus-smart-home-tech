@@ -3,10 +3,8 @@ package ru.yandex.practicum.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.exception.ScenarioAddedException;
-import ru.practicum.model.*;
-import ru.practicum.repository.*;
 import ru.yandex.practicum.*;
+import ru.yandex.practicum.exception.ScenarioAddedException;
 import ru.yandex.practicum.model.*;
 import ru.yandex.practicum.repository.*;
 

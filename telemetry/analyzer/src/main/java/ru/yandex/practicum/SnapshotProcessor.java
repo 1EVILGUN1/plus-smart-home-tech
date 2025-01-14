@@ -7,11 +7,11 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.model.SensorEventSnapshot;
 import ru.yandex.practicum.model.SensorState;
 import ru.yandex.practicum.serialize.SensorsSnapshotDeserializer;
 import ru.yandex.practicum.service.SnapshotService;
-import ru.yandex.practicum.kafka.telemetry.event.*;
 
 import java.time.Duration;
 import java.util.*;

@@ -19,9 +19,6 @@
         <module>telemetry</module>
         <module>infra</module>
         <module>commerce</module>
-        <module>telemetry/Aggregator</module>
-        <module>telemetry/Analyzer</module>
-        <module>telemetry/event-model</module>
     </modules>
 
     <properties>
