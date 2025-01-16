@@ -1,6 +1,7 @@
 package ru.yandex.practicum.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.*;
@@ -10,7 +11,7 @@ import ru.yandex.practicum.repository.*;
 
 import java.util.Optional;
 
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class HubService {
@@ -22,19 +23,21 @@ public class HubService {
     private final ScenarioConditionRepository scenarioConditionRepository;
     private final ScenarioActionRepository scenarioActionRepository;
 
+    @Transactional
     public void processingEvent(DeviceAddedEvent event) {
         if (!sensorRepository.existsById(event.getId())) {
             SensorEntity sensorEntity = new SensorEntity(event.getId(), event.getHubId());
             sensorRepository.save(sensorEntity);
-            System.out.println("Добавлено устройство");
+            log.info("Добавлено устройство");
         }
     }
 
+    @Transactional
     public void processingEvent(DeviceRemovedEvent event) {
         if (sensorRepository.existsById(event.getId())) {
             SensorEntity sensorEntity = new SensorEntity(event.getId(), event.getHubId());
             sensorRepository.delete(sensorEntity);
-            System.out.println("Устройство удалено");
+            log.info("Устройство удалено");
         }
     }
 
@@ -43,7 +46,7 @@ public class HubService {
         ScenarioEntity scenarioEntity = new ScenarioEntity();
         Optional<ScenarioEntity> scenarioOptional = scenarioRepository.findByHubIdAndName(event.getHubId(), event.getName());
         if (scenarioOptional.isPresent()) {
-            System.out.println("Сценарий уже существует");
+            log.info("Сценарий уже существует");
             throw new ScenarioAddedException("Сценарий уже существует");
         }
         scenarioEntity.setHubId(event.getHubId());
@@ -52,13 +55,13 @@ public class HubService {
 
         for (ScenarioCondition sc : event.getConditions()) {
             ConditionEntity conditionEntity = new ConditionEntity();
-            conditionEntity.setType(sc.getType().name());
-            conditionEntity.setOperation(sc.getConditionOperation().name());
+            conditionEntity.setType(sc.getType());
+            conditionEntity.setOperation(sc.getConditionOperation());
             conditionEntity.setValue(sc.getValue());
             conditionRepository.save(conditionEntity);
             Optional<SensorEntity> sensorEntity = sensorRepository.findByIdAndHubId(sc.getSensorId(), event.getHubId());
             if (sensorEntity.isEmpty()) {
-                System.out.println("Нужный сенсор не найден");
+                log.warn("Нужный сенсор не найден");
                 throw new ScenarioAddedException("Нужный сенсор не найден");
             }
             ScenarioConditionEntity scenarioConditionEntity = new ScenarioConditionEntity();
@@ -74,7 +77,7 @@ public class HubService {
             actionRepository.save(actionEntity);
             Optional<SensorEntity> sensorEntity = sensorRepository.findByIdAndHubId(da.getSensorId(), event.getHubId());
             if (sensorEntity.isEmpty()) {
-                System.out.println("Нужный сенсор не найден");
+                log.warn("Нужный сенсор не найден");
                 throw new ScenarioAddedException("Нужный сенсор не найден");
             }
             ScenarioActionEntity scenarioActionEntity = new ScenarioActionEntity();
@@ -83,14 +86,15 @@ public class HubService {
             scenarioActionEntity.setActionEntity(actionEntity);
             scenarioActionRepository.save(scenarioActionEntity);
         }
-        System.out.println("Сценарий добавлен");
+        log.info("Сценарий добавлен");
     }
 
+    @Transactional
     public void processingEvent(ScenarioRemovedEvent event) {
         Optional<ScenarioEntity> scenarioOptional = scenarioRepository.findByHubIdAndName(event.getHubId(), event.getName());
         if (scenarioOptional.isPresent()) {
             scenarioRepository.delete(scenarioOptional.get());
-            System.out.println("Сценарий удалён");
+            log.info("Сценарий удалён");
         }
     }
 }

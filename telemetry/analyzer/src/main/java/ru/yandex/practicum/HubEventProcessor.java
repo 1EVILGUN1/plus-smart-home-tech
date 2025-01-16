@@ -2,16 +2,14 @@ package ru.yandex.practicum;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
-import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
-import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
-import ru.yandex.practicum.mapper.ScenarioAddedMapper;
+import ru.yandex.practicum.kafka.telemetry.event.*;
+import ru.yandex.practicum.processor.hub.*;
 import ru.yandex.practicum.serialize.HubEventDeserializer;
 import ru.yandex.practicum.service.HubService;
 
@@ -28,7 +26,6 @@ public class HubEventProcessor implements Runnable {
     private static final List<String> topics = List.of("telemetry.hubs.v1");
     private static final Duration consume_attempt_timeout = Duration.ofMillis(1000);
     private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
-
     private final HubService service;
 
     private static void manageOffsets(ConsumerRecord<Void, HubEventAvro> record, int count, KafkaConsumer<Void, HubEventAvro> consumer) {
@@ -37,7 +34,7 @@ public class HubEventProcessor implements Runnable {
                 new OffsetAndMetadata(record.offset() + 1)
         );
 
-        if (count % 10 == 0) {
+        if (OffsetCommitCondition.shouldCommit(count)) {
             consumer.commitAsync(currentOffsets, (offsets, exception) -> {
                 if (exception != null) {
                     log.warn("Ошибка во время фиксации оффсетов: {}", offsets, exception);
@@ -50,69 +47,46 @@ public class HubEventProcessor implements Runnable {
     public void run() {
         Properties config = getPropertiesConsumerHub();
         KafkaConsumer<Void, HubEventAvro> consumer = new KafkaConsumer<>(config);
+        Map<Class<? extends SpecificRecordBase>, EventProcessor> processors = new HashMap<>();
+        processors.put(ScenarioRemovedEventAvro.class, new ScenarioRemovedEventProcessor(service));
+        processors.put(ScenarioAddedEventAvro.class, new ScenarioAddedEventProcessor(service));
+        processors.put(DeviceRemovedEventAvro.class, new DeviceRemovedEventAvroProcessor(service));
+        processors.put(DeviceAddedEventAvro.class, new DeviceAddedEventAvroProcessor(service));
 
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
-
             consumer.subscribe(topics);
 
             while (true) {
                 ConsumerRecords<Void, HubEventAvro> records = consumer.poll(consume_attempt_timeout);
                 int count = 0;
                 for (ConsumerRecord<Void, HubEventAvro> record : records) {
-                    System.out.println("Получено сообщение. topic: telemetry.hubs.v1");
-                    System.out.println(record.value());
+                    log.info("Получено сообщение. topic: telemetry.hubs.v1 {}\n", record.value());
 
-                    String type = record.value().getPayload().getClass().getSimpleName();
-                    try {
+                    SpecificRecordBase payload = record.value();
+                    Class<? extends SpecificRecordBase> payloadClass = payload.getClass();
 
-
-                        switch (record.value().getPayload().getClass().getSimpleName()) {
-                            case "ScenarioRemovedEventAvro":
-                                ScenarioRemovedEvent removedEvent = new ScenarioRemovedEvent();
-                                removedEvent.setHubId(record.value().getHubId());
-                                removedEvent.setTimestamp(record.value().getTimestamp());
-                                removedEvent.setName(((ScenarioRemovedEventAvro) record.value().getPayload()).getName());
-                                service.processingEvent(removedEvent);
-                                break;
-                            case "ScenarioAddedEventAvro":
-                                ScenarioAddedEvent event = ScenarioAddedMapper.mapScenarioAddedAvroToScenarioAddedEvent(record.value());
-                                service.processingEvent(event);
-                                break;
-                            case "DeviceRemovedEventAvro":
-                                DeviceRemovedEvent deviceRemoved = new DeviceRemovedEvent();
-                                deviceRemoved.setHubId(record.value().getHubId());
-                                deviceRemoved.setTimestamp(record.value().getTimestamp());
-                                deviceRemoved.setId(((DeviceRemovedEventAvro) record.value().getPayload()).getId());
-                                service.processingEvent(deviceRemoved);
-                                break;
-                            case "DeviceAddedEventAvro":
-                                DeviceAddedEvent deviceAdded = new DeviceAddedEvent();
-                                deviceAdded.setHubId(record.value().getHubId());
-                                deviceAdded.setTimestamp(record.value().getTimestamp());
-                                deviceAdded.setId(((DeviceAddedEventAvro) record.value().getPayload()).getId());
-                                deviceAdded.setDeviceType(DeviceSensorType.valueOf(((DeviceAddedEventAvro) record.value().getPayload()).getType().name()));
-                                service.processingEvent(deviceAdded);
-                                break;
+                    EventProcessor processor = processors.get(payloadClass);
+                    if (processor != null) {
+                        try {
+                            processor.process(record.value());
+                        } catch (Exception e) {
+                            log.error("Ошибка при обработке события: {}", e.getMessage(), e);
                         }
-                    } catch (Exception e) {
-                        System.out.println(e.getMessage());
+                    } else {
+                        log.warn("Обработчик для типа события {} не найден", payloadClass.getName());
                     }
-
 
                     manageOffsets(record, count, consumer);
                     count++;
                 }
                 consumer.commitAsync();
             }
-
-        } catch (
-                WakeupException ignored) {
-        } catch (
-                Exception e) {
+        } catch (WakeupException ignored) {
+            // Игнорируем исключение при остановке
+        } catch (Exception e) {
             log.error("Ошибка во время обработки событий от датчиков", e);
         } finally {
-
             try {
                 consumer.commitSync(currentOffsets);
             } finally {
@@ -120,8 +94,8 @@ public class HubEventProcessor implements Runnable {
                 consumer.close();
             }
         }
-
     }
+
 
     private Properties getPropertiesConsumerHub() {
         Properties config = new Properties();

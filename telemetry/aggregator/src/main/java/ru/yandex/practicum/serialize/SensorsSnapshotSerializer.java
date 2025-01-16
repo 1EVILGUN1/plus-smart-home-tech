@@ -14,8 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HexFormat;
 
-public class SensorsSnapshotSrializer implements Serializer<SensorsSnapshotAvro> {
-    private static final Logger log = LoggerFactory.getLogger(SensorsSnapshotSrializer.class);
+public class SensorsSnapshotSerializer implements Serializer<SensorsSnapshotAvro> {
+    private static final Logger log = LoggerFactory.getLogger(SensorsSnapshotSerializer.class);
     private static final HexFormat hexFormat = HexFormat.ofDelimiter(":");
 
 
@@ -36,7 +36,7 @@ public class SensorsSnapshotSrializer implements Serializer<SensorsSnapshotAvro>
 
             byte[] bytes = outputStream.toByteArray();
 
-            log.info("Данные сериализованы в формат Avro:\n{}", hexFormat.formatHex(bytes));
+            log.info("Данные сериализованы в формат Avro для события ID: {}\n{}", event.getHubId(), hexFormat.formatHex(bytes));
 
             return bytes;
 

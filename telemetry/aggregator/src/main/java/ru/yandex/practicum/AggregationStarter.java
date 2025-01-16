@@ -12,11 +12,11 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.apache.kafka.common.serialization.VoidSerializer;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.serialize.SensorEventDeserializer;
-import ru.yandex.practicum.serialize.SensorsSnapshotSrializer;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
+import ru.yandex.practicum.serialize.SensorEventDeserializer;
+import ru.yandex.practicum.serialize.SensorsSnapshotSerializer;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -135,7 +135,7 @@ public class AggregationStarter {
         Properties config = new Properties();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, VoidSerializer.class);
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, SensorsSnapshotSrializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, SensorsSnapshotSerializer.class);
         return config;
     }
 }

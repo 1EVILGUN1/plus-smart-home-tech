@@ -20,20 +20,20 @@ public class CollectorController {
 
     @PostMapping("/sensors")
     public void processingSensors(@Valid @RequestBody SensorEvent event) {
-        switch (event.getClass().getSimpleName()) {
-            case "ClimateSensorEvent":
+        switch (event.getType()) {
+            case SensorEventType.CLIMATE_SENSOR_EVENT:
                 service.processingSensors((ClimateSensorEvent) event);
                 break;
-            case "LightSensorEvent":
+            case SensorEventType.LIGHT_SENSOR_EVENT:
                 service.processingSensors((LightSensorEvent) event);
                 break;
-            case "MotionSensorEvent":
+            case SensorEventType.MOTION_SENSOR_EVENT:
                 service.processingSensors((MotionSensorEvent) event);
                 break;
-            case "SwitchSensorEvent":
+            case SensorEventType.SWITCH_SENSOR_EVENT:
                 service.processingSensors((SwitchSensorEvent) event);
                 break;
-            case "TemperatureSensorEvent":
+            case SensorEventType.TEMPERATURE_SENSOR_EVENT:
                 service.processingSensors((TemperatureSensorEvent) event);
                 break;
         }
@@ -42,17 +42,17 @@ public class CollectorController {
 
     @PostMapping("/hubs")
     public void processingHubs(@Valid @RequestBody HubEvent event) {
-        switch (event.getClass().getSimpleName()) {
-            case "DeviceAddedEvent":
+        switch (event.getType()) {
+            case HubEventType.DEVICE_ADDED:
                 service.processingHub((DeviceAddedEvent) event);
                 break;
-            case "DeviceRemovedEvent":
+            case HubEventType.DEVICE_REMOVED:
                 service.processingHub((DeviceRemovedEvent) event);
                 break;
-            case "ScenarioAddedEvent":
+            case HubEventType.SCENARIO_ADDED:
                 service.processingHub((ScenarioAddedEvent) event);
                 break;
-            case "ScenarioRemovedEvent":
+            case HubEventType.SCENARIO_REMOVED:
                 service.processingHub((ScenarioRemovedEvent) event);
                 break;
         }

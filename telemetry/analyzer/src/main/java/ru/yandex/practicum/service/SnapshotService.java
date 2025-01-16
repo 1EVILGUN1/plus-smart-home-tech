@@ -15,6 +15,7 @@ import ru.yandex.practicum.repository.SensorRepository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,7 +34,7 @@ public class SnapshotService {
 
         List<ScenarioEntity> scenarioEntityList = scenarioRepository.findByHubId(hubId);
 
-        if (scenarioEntityList.size() == 0) {
+        if (scenarioEntityList.isEmpty()) {
             System.out.println("Нет доступных сценариев");
             return;
         }
@@ -58,7 +59,7 @@ public class SnapshotService {
                         ConditionEntity conditionEntity = se.getScenarioConditions().get(sensorEntity);
                         if (ConditionType.CO2LEVEL.equals(conditionEntity.getType())) {
                             if (compare(climateSensorEvent.getCo2Level(), conditionEntity.getValue(),
-                                    ConditionOperation.valueOf(conditionEntity.getOperation()))) {
+                                    ConditionOperation.valueOf(String.valueOf(conditionEntity.getOperation())))) {
 
                                 request = createDeviceActionRequest(se, climateSensorEvent.getId(), hubId);
 
@@ -66,7 +67,7 @@ public class SnapshotService {
                         }
                         if (ConditionType.HUMIDITY.equals(conditionEntity.getType())) {
                             if (compare(climateSensorEvent.getHumidity(), conditionEntity.getValue(),
-                                    ConditionOperation.valueOf(conditionEntity.getOperation()))) {
+                                    ConditionOperation.valueOf(String.valueOf(conditionEntity.getOperation())))) {
 
                                 request = createDeviceActionRequest(se, climateSensorEvent.getId(), hubId);
                             }
@@ -78,7 +79,7 @@ public class SnapshotService {
                     for (ScenarioEntity se : actualScenarios) {
                         ConditionEntity lightConditionEntity = se.getScenarioConditions().get(sensorEntity);
                         if (compare(lightSensorEvent.getLuminosity(), lightConditionEntity.getValue(),
-                                ConditionOperation.valueOf(lightConditionEntity.getOperation()))) {
+                                ConditionOperation.valueOf(String.valueOf(lightConditionEntity.getOperation())))) {
 
                             request = createDeviceActionRequest(se, lightSensorEvent.getId(), hubId);
                         }
@@ -109,7 +110,7 @@ public class SnapshotService {
                     for (ScenarioEntity se : actualScenarios) {
                         ConditionEntity temperatureConditionEntity = se.getScenarioConditions().get(sensorEntity);
                         if (compare(temperatureSensorEvent.getTemperatureC(), temperatureConditionEntity.getValue(),
-                                ConditionOperation.valueOf((temperatureConditionEntity.getOperation())))) {
+                                ConditionOperation.valueOf(String.valueOf((temperatureConditionEntity.getOperation()))))) {
 
                             request = createDeviceActionRequest(se, temperatureSensorEvent.getId(), hubId);
                         }
@@ -123,24 +124,20 @@ public class SnapshotService {
     }
 
 
-    private boolean compare(Integer first, Integer second, ConditionOperation opration) {
-        switch (opration) {
-            case EQUALS:
-                return first == second;
-            case GREATER_THAN:
-                return first > second;
-            case LOWER_THAN:
-                return first < second;
-        }
-        return false;
+    private boolean compare(Integer first, Integer second, ConditionOperation operation) {
+        return switch (operation) {
+            case EQUALS -> Objects.equals(first, second);
+            case GREATER_THAN -> first > second;
+            case LOWER_THAN -> first < second;
+        };
     }
 
     private DeviceActionRequest createDeviceActionRequest(ScenarioEntity se, String id, String hubId) {
-        ActionEntity actionEtity = se.getScenarioActions().get(id);
+        ActionEntity actionEntity = se.getScenarioActions().get(id);
         DeviceActionProto deviceActionProto = DeviceActionProto.newBuilder()
                 .setSensorId(id)
-                .setType(ActionTypeProto.valueOf(actionEtity.getType()))
-                .setValue(actionEtity.getValue())
+                .setType(ActionTypeProto.valueOf(actionEntity.getType()))
+                .setValue(actionEntity.getValue())
                 .build();
         DeviceActionRequest request = DeviceActionRequest.newBuilder()
                 .setHubId(hubId)

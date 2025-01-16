@@ -2,6 +2,8 @@ package ru.yandex.practicum.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.yandex.practicum.ConditionOperation;
+import ru.yandex.practicum.ConditionType;
 
 @Table(name = "conditions")
 @Entity
@@ -14,7 +16,9 @@ public class ConditionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String type;
-    private String operation;
+    @Enumerated(EnumType.STRING)
+    private ConditionType type;
+    @Enumerated(EnumType.STRING)
+    private ConditionOperation operation;
     private Integer value;
 }
