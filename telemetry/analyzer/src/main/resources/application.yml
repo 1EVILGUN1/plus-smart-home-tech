@@ -25,3 +25,27 @@ grpc:
 offset:
   commit:
     threshold: 10
+kafka:
+  hub-consumer:
+    bootstrap-servers: localhost:9092
+    group-id: some.group.id2
+    client-id: SomeConsumer2
+    topics:
+      - telemetry.hubs.v1
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.VoidDeserializer
+      value-deserializer: com.example.HubEventDeserializer
+      consume-attempt-timeout: 1000ms
+
+  snapshot-consumer:
+    bootstrap-servers: localhost:9092
+    group-id: some.group.id1
+    client-id: SomeConsumer1
+    topics:
+      - telemetry.snapshots.v1
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.VoidDeserializer
+      value-deserializer: com.example.SensorsSnapshotDeserializer
+      consume-attempt-timeout: 1000ms
+
+

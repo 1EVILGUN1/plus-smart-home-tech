@@ -9,14 +9,11 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
-import org.apache.kafka.common.serialization.VoidDeserializer;
-import org.apache.kafka.common.serialization.VoidSerializer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.kafka.config.SensorKafkaConfig;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
-import ru.yandex.practicum.serialize.SensorEventDeserializer;
-import ru.yandex.practicum.serialize.SensorsSnapshotSerializer;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,10 +25,12 @@ import java.util.*;
 public class AggregationStarter {
 
     private static final List<String> topics = List.of("telemetry.sensors.v1");
-    private static final Duration consume_attempt_timeout = Duration.ofMillis(1000);
+    private static final Duration consumeAttemptTimeout = Duration.ofMillis(1000);
     private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
     private static final Map<String, SensorsSnapshotAvro> snapshots = new HashMap<>();
+
+    private final SensorKafkaConfig kafkaConfig;
 
     private static void manageOffsets(ConsumerRecord<Void, SensorEventAvro> record, int count, KafkaConsumer<Void, SensorEventAvro> consumer) {
         currentOffsets.put(
@@ -57,7 +56,7 @@ public class AggregationStarter {
             consumer.subscribe(topics);
             while (true) {
 
-                ConsumerRecords<Void, SensorEventAvro> records = consumer.poll(consume_attempt_timeout);
+                ConsumerRecords<Void, SensorEventAvro> records = consumer.poll(consumeAttemptTimeout);
 
                 int count = 0;
                 for (ConsumerRecord<Void, SensorEventAvro> record : records) {
@@ -103,11 +102,8 @@ public class AggregationStarter {
                 consumer.commitAsync();
             }
 
-
-        } catch (
-                WakeupException ignored) {
-        } catch (
-                Exception e) {
+        } catch (WakeupException ignored) {
+        } catch (Exception e) {
             log.error("Ошибка во время обработки событий от датчиков", e);
         } finally {
 
@@ -123,19 +119,20 @@ public class AggregationStarter {
 
     private Properties getPropertiesConsumerSensor() {
         Properties config = new Properties();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, VoidDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SensorEventDeserializer.class);
-        config.put(ConsumerConfig.CLIENT_ID_CONFIG, "SomeConsumer");
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "some.group.id");
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getConsumer().getBootstrapServers());
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaConfig.getConsumer().getKeyDeserializer());
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaConfig.getConsumer().getValueDeserializer());
+        config.put(ConsumerConfig.CLIENT_ID_CONFIG, kafkaConfig.getConsumer().getClientId());
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaConfig.getConsumer().getGroupId());
         return config;
     }
 
     private Properties getPropertiesProducerSensor() {
         Properties config = new Properties();
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, VoidSerializer.class);
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, SensorsSnapshotSerializer.class);
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getProducer().getBootstrapServers());
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaConfig.getProducer().getKeySerializer());
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, kafkaConfig.getProducer().getValueSerializer());
         return config;
     }
 }
+

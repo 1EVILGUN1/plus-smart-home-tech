@@ -5,26 +5,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
-import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.kafka.config.SnapshotConsumerConfig;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.model.SensorEventSnapshot;
 import ru.yandex.practicum.model.SensorState;
-import ru.yandex.practicum.serialize.SensorsSnapshotDeserializer;
 import ru.yandex.practicum.service.SnapshotService;
 
-import java.time.Duration;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SnapshotProcessor {
-    private static final List<String> topics = List.of("telemetry.snapshots.v1");
-    private static final Duration consume_attempt_timeout = Duration.ofMillis(1000);
     private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
-
     private final SnapshotService service;
+    private final SnapshotConsumerConfig snapshotConsumerConfig;
 
     private static void manageOffsets(ConsumerRecord<Void, SensorsSnapshotAvro> record, int count, KafkaConsumer<Void, SensorsSnapshotAvro> consumer) {
         currentOffsets.put(
@@ -48,16 +47,19 @@ public class SnapshotProcessor {
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
 
-            consumer.subscribe(topics);
+            // Подписываемся на топики, указанные в конфигурации
+            consumer.subscribe(snapshotConsumerConfig.getTopics());
 
             while (true) {
 
-                ConsumerRecords<Void, SensorsSnapshotAvro> records = consumer.poll(consume_attempt_timeout);
+                // Периодичное получение записей из Kafka
+                ConsumerRecords<Void, SensorsSnapshotAvro> records = consumer.poll(snapshotConsumerConfig.getConsumer().getConsumeAttemptTimeout());
                 int count = 0;
                 for (ConsumerRecord<Void, SensorsSnapshotAvro> record : records) {
 
                     log.info("Получено сообщение. topic: telemetry.snapshots.v1 {}\n", record.value());
 
+                    // Обработка данных события
                     SensorEventSnapshot snapshot = new SensorEventSnapshot();
                     snapshot.setHubId(record.value().getHubId());
                     snapshot.setTimestapm(record.value().getTimestamp());
@@ -114,43 +116,43 @@ public class SnapshotProcessor {
                         stateMap.put(str, state);
                     }
                     snapshot.setSensorsState(stateMap);
+
+                    // Обработка снимка
                     service.processingSnapshot(snapshot);
 
                     manageOffsets(record, count, consumer);
                     count++;
                 }
+
                 consumer.commitAsync();
 
             }
 
-        } catch (
-                WakeupException ignored) {
-        } catch (
-                Exception e) {
+        } catch (WakeupException ignored) {
+            // Игнорируем исключение при остановке
+        } catch (Exception e) {
             log.error("Ошибка во время обработки событий от датчиков", e);
         } finally {
-
             try {
                 consumer.commitSync(currentOffsets);
-
             } finally {
                 log.info("Закрываем консьюмер");
                 consumer.close();
             }
         }
-
-
     }
 
+    // Получаем конфигурацию Kafka из свойств
     private Properties getPropertiesConsumerSnapshot() {
         Properties config = new Properties();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, VoidDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SensorsSnapshotDeserializer.class);
-        config.put(ConsumerConfig.CLIENT_ID_CONFIG, "SomeConsumer1");
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "some.group.id1");
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, snapshotConsumerConfig.getBootstrapServers());
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, snapshotConsumerConfig.getConsumer().getKeyDeserializer());
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, snapshotConsumerConfig.getConsumer().getValueDeserializer());
+        config.put(ConsumerConfig.CLIENT_ID_CONFIG, snapshotConsumerConfig.getClientId());
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, snapshotConsumerConfig.getGroupId());
         return config;
     }
 }
+
 
 

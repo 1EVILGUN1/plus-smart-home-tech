@@ -6,16 +6,13 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
-import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.kafka.config.HubConsumerConfig;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.processor.hub.*;
-import ru.yandex.practicum.serialize.HubEventDeserializer;
 import ru.yandex.practicum.service.HubService;
 
-import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -23,10 +20,10 @@ import java.util.Properties;
 @Component
 @RequiredArgsConstructor
 public class HubEventProcessor implements Runnable {
-    private static final List<String> topics = List.of("telemetry.hubs.v1");
-    private static final Duration consume_attempt_timeout = Duration.ofMillis(1000);
-    private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final HubConsumerConfig hubConsumerConfig;
     private final HubService service;
+
+    private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
     private static void manageOffsets(ConsumerRecord<Void, HubEventAvro> record, int count, KafkaConsumer<Void, HubEventAvro> consumer) {
         currentOffsets.put(
@@ -45,8 +42,10 @@ public class HubEventProcessor implements Runnable {
 
     @Override
     public void run() {
+        // Извлекаем настройки из конфигурации
         Properties config = getPropertiesConsumerHub();
         KafkaConsumer<Void, HubEventAvro> consumer = new KafkaConsumer<>(config);
+
         Map<Class<? extends SpecificRecordBase>, EventProcessor> processors = new HashMap<>();
         processors.put(ScenarioRemovedEventAvro.class, new ScenarioRemovedEventProcessor(service));
         processors.put(ScenarioAddedEventAvro.class, new ScenarioAddedEventProcessor(service));
@@ -55,10 +54,10 @@ public class HubEventProcessor implements Runnable {
 
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
-            consumer.subscribe(topics);
+            consumer.subscribe(hubConsumerConfig.getTopics());
 
             while (true) {
-                ConsumerRecords<Void, HubEventAvro> records = consumer.poll(consume_attempt_timeout);
+                ConsumerRecords<Void, HubEventAvro> records = consumer.poll(hubConsumerConfig.getConsumer().getConsumeAttemptTimeout());
                 int count = 0;
                 for (ConsumerRecord<Void, HubEventAvro> record : records) {
                     log.info("Получено сообщение. topic: telemetry.hubs.v1 {}\n", record.value());
@@ -83,7 +82,6 @@ public class HubEventProcessor implements Runnable {
                 consumer.commitAsync();
             }
         } catch (WakeupException ignored) {
-            // Игнорируем исключение при остановке
         } catch (Exception e) {
             log.error("Ошибка во время обработки событий от датчиков", e);
         } finally {
@@ -96,14 +94,14 @@ public class HubEventProcessor implements Runnable {
         }
     }
 
-
     private Properties getPropertiesConsumerHub() {
         Properties config = new Properties();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, VoidDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, HubEventDeserializer.class);
-        config.put(ConsumerConfig.CLIENT_ID_CONFIG, "SomeConsumer2");
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "some.group.id2");
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, hubConsumerConfig.getBootstrapServers());
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, hubConsumerConfig.getConsumer().getKeyDeserializer());
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, hubConsumerConfig.getConsumer().getValueDeserializer());
+        config.put(ConsumerConfig.CLIENT_ID_CONFIG, hubConsumerConfig.getClientId());
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, hubConsumerConfig.getGroupId());
         return config;
     }
 }
+
