@@ -10,8 +10,6 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class AggregatorApp {
     public static void main(String[] args) {
         ConfigurableApplicationContext context = SpringApplication.run(AggregatorApp.class, args);
-
-        // Получаем бин AggregationStarter из контекста и запускаем основную логику сервиса
         AggregationStarter aggregator = context.getBean(AggregationStarter.class);
         aggregator.start();
     }

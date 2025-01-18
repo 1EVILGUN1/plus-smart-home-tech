@@ -7,17 +7,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.contant.HubEventType;
-import ru.yandex.practicum.contant.SensorEventType;
-import ru.yandex.practicum.model.hub.*;
-import ru.yandex.practicum.model.sensor.*;
+import ru.yandex.practicum.*;
 import ru.yandex.practicum.service.CollectorService;
 
 @RestController
-@RequestMapping("/events")
 @RequiredArgsConstructor
 @Slf4j
+@RequestMapping(path = "/events")
 public class CollectorController {
+
     private final CollectorService service;
 
     @PostMapping("/sensors")

@@ -20,7 +20,7 @@ public class BaseAvroDeserializer<T extends SpecificRecordBase> implements Deser
 
     public BaseAvroDeserializer(DecoderFactory decoderFactory, Schema schema) {
         this.decoderFactory = decoderFactory;
-        new SpecificDatumReader<>(schema);
+        reader = new SpecificDatumReader<>(schema);
     }
 
     @Override
