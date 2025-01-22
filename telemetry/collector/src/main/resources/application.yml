@@ -2,3 +2,8 @@ topic:
   telemetry:
     sensors: "telemetry.sensors.v1"
     hubs: "telemetry.hubs.v1"
+kafka:
+  producer:
+    bootstrap-servers: "localhost:9092"
+    key-serializer: org.apache.kafka.common.serialization.VoidSerializer
+    value-serializer: com.yourcompany.GeneralAvroSerializer

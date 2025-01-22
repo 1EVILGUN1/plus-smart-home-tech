@@ -10,6 +10,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.kafka.config.KafkaTopicsConfig;
 import ru.yandex.practicum.kafka.config.SensorKafkaConfig;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
@@ -23,101 +24,108 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class AggregationStarter {
+    private static final Duration CONSUME_TIMEOUT = Duration.ofMillis(1000);
 
-    private static final List<String> topics = List.of("telemetry.sensors.v1");
-    private static final Duration consumeAttemptTimeout = Duration.ofMillis(1000);
-    private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
-
-    private static final Map<String, SensorsSnapshotAvro> snapshots = new HashMap<>();
-
+    private final KafkaTopicsConfig kafkaTopicsConfig;
     private final SensorKafkaConfig kafkaConfig;
 
-    private static void manageOffsets(ConsumerRecord<Void, SensorEventAvro> record, int count, KafkaConsumer<Void, SensorEventAvro> consumer) {
-        currentOffsets.put(
-                new TopicPartition(record.topic(), record.partition()),
-                new OffsetAndMetadata(record.offset() + 1)
+    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final Map<String, SensorsSnapshotAvro> snapshots = new HashMap<>();
+
+    public void start() {
+        Properties consumerProperties = getConsumerProperties();
+        try (KafkaConsumer<Void, SensorEventAvro> consumer = new KafkaConsumer<>(consumerProperties)) {
+            Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
+            consumer.subscribe(List.of(kafkaTopicsConfig.getSensors()));
+
+            while (true) {
+                processMessages(consumer);
+            }
+        } catch (WakeupException ignored) {
+            log.info("Consumer shutdown triggered.");
+        } catch (Exception e) {
+            log.error("Error while processing sensor events", e);
+        }
+    }
+
+    private void processMessages(KafkaConsumer<Void, SensorEventAvro> consumer) {
+        ConsumerRecords<Void, SensorEventAvro> records = consumer.poll(CONSUME_TIMEOUT);
+        int recordCount = 0;
+
+        for (ConsumerRecord<Void, SensorEventAvro> record : records) {
+            log.info("Received message from topic: {}", kafkaTopicsConfig.getSensors());
+            SensorsSnapshotAvro snapshot = updateSnapshot(record);
+            if (snapshot != null) {
+                sendSnapshot(snapshot);
+            }
+            trackOffset(record, ++recordCount, consumer);
+        }
+
+        consumer.commitAsync();
+    }
+
+    private SensorsSnapshotAvro updateSnapshot(ConsumerRecord<Void, SensorEventAvro> record) {
+        String hubId = record.value().getHubId();
+        SensorsSnapshotAvro snapshot = snapshots.getOrDefault(hubId, createNewSnapshot(record));
+
+        SensorStateAvro newState = new SensorStateAvro(
+                Instant.ofEpochSecond(record.timestamp()),
+                record.value().getPayload()
         );
 
-        if (count % 10 == 0) {
-            consumer.commitAsync(currentOffsets, (offsets, exception) -> {
+        Map<String, SensorStateAvro> sensorStates = snapshot.getSensorsState();
+        String sensorId = record.value().getId();
+
+        if (!sensorStates.containsKey(sensorId) || !sensorStates.get(sensorId).equals(newState)) {
+            sensorStates.put(sensorId, newState);
+            snapshot.setTimestamp(Instant.ofEpochSecond(record.timestamp()));
+            snapshots.put(hubId, snapshot);
+            return snapshot;
+        }
+
+        return null;
+    }
+
+    private SensorsSnapshotAvro createNewSnapshot(ConsumerRecord<Void, SensorEventAvro> record) {
+        SensorsSnapshotAvro snapshot = new SensorsSnapshotAvro();
+        snapshot.setHubId(record.value().getHubId());
+        snapshot.setTimestamp(Instant.ofEpochSecond(record.timestamp()));
+        snapshot.setSensorsState(new HashMap<>());
+        return snapshot;
+    }
+
+    private void sendSnapshot(SensorsSnapshotAvro snapshot) {
+        Properties producerProperties = getProducerProperties();
+        try (Producer<String, SensorsSnapshotAvro> producer = new KafkaProducer<>(producerProperties)) {
+            ProducerRecord<String, SensorsSnapshotAvro> record = new ProducerRecord<>(
+                    kafkaTopicsConfig.getSnapshots(), snapshot
+            );
+            producer.send(record, (metadata, exception) -> {
                 if (exception != null) {
-                    log.warn("Ошибка во время фиксации оффсетов: {}", offsets, exception);
+                    log.error("Error while sending snapshot: {}", snapshot, exception);
+                } else {
+                    log.info("Snapshot sent successfully to topic: {}", kafkaTopicsConfig.getSnapshots());
                 }
             });
         }
     }
 
-    public void start() {
-        Properties config = getPropertiesConsumerSensor();
-        KafkaConsumer<Void, SensorEventAvro> consumer = new KafkaConsumer<>(config);
-        Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
+    private void trackOffset(ConsumerRecord<Void, SensorEventAvro> record, int count, KafkaConsumer<Void, SensorEventAvro> consumer) {
+        currentOffsets.put(
+                new TopicPartition(record.topic(), record.partition()),
+                new OffsetAndMetadata(record.offset() + 1)
+        );
 
-        try {
-            consumer.subscribe(topics);
-            while (true) {
-
-                ConsumerRecords<Void, SensorEventAvro> records = consumer.poll(consumeAttemptTimeout);
-
-                int count = 0;
-                for (ConsumerRecord<Void, SensorEventAvro> record : records) {
-                    System.out.println("Получено сообщение. topic: telemetry.sensors.v1");
-
-                    Optional<SensorsSnapshotAvro> result = Optional.empty();
-                    if (snapshots.containsKey(record.value().getHubId())) {
-                        SensorsSnapshotAvro snapshot = snapshots.get(record.value().getHubId());
-                        SensorStateAvro stateAvro = new SensorStateAvro(Instant.ofEpochSecond(record.timestamp()), record.value().getPayload());
-                        if (snapshot.getSensorsState().containsKey(record.value().getId())) {
-                            if (!snapshot.getSensorsState().get(record.value().getId()).equals(stateAvro)) {
-                                snapshot.getSensorsState().put(record.value().getId(), stateAvro);
-                                result = Optional.of(snapshot);
-                            }
-                        } else {
-                            snapshot.getSensorsState().put(record.value().getId(), stateAvro);
-                            result = Optional.of(snapshot);
-                        }
-
-                    } else {
-                        SensorsSnapshotAvro snapshot = new SensorsSnapshotAvro();
-                        snapshot.setHubId(record.value().getHubId());
-                        snapshot.setTimestamp(Instant.ofEpochSecond(record.timestamp()));
-                        SensorStateAvro stateAvro = new SensorStateAvro(Instant.ofEpochSecond(record.timestamp()), record.value().getPayload());
-
-                        snapshot.setSensorsState(new HashMap<>());
-                        snapshot.getSensorsState().put(record.value().getId(), stateAvro);
-                        snapshots.put(record.value().getHubId(), snapshot);
-                        result = Optional.of(snapshot);
-                    }
-
-                    if (result.isPresent()) {
-                        Properties properties = getPropertiesProducerSensor();
-                        Producer<String, SensorsSnapshotAvro> producer = new KafkaProducer<>(properties);
-                        String snapshotTopic = "telemetry.snapshots.v1";
-                        ProducerRecord<String, SensorsSnapshotAvro> snapshotRecord = new ProducerRecord<>(snapshotTopic, result.get());
-                        producer.send(snapshotRecord);
-                        producer.close();
-                    }
-                    manageOffsets(record, count, consumer);
-                    count++;
+        if (OffsetCommitCondition.shouldCommit(count)) {
+            consumer.commitAsync(currentOffsets, (offsets, exception) -> {
+                if (exception != null) {
+                    log.warn("Error while committing offsets: {}", offsets, exception);
                 }
-                consumer.commitAsync();
-            }
-
-        } catch (WakeupException ignored) {
-        } catch (Exception e) {
-            log.error("Ошибка во время обработки событий от датчиков", e);
-        } finally {
-
-            try {
-                consumer.commitSync(currentOffsets);
-
-            } finally {
-                log.info("Закрываем консьюмер");
-                consumer.close();
-            }
+            });
         }
     }
 
-    private Properties getPropertiesConsumerSensor() {
+    private Properties getConsumerProperties() {
         Properties config = new Properties();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getConsumer().getBootstrapServers());
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaConfig.getConsumer().getKeyDeserializer());
@@ -127,7 +135,7 @@ public class AggregationStarter {
         return config;
     }
 
-    private Properties getPropertiesProducerSensor() {
+    private Properties getProducerProperties() {
         Properties config = new Properties();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getProducer().getBootstrapServers());
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaConfig.getProducer().getKeySerializer());
@@ -135,4 +143,3 @@ public class AggregationStarter {
         return config;
     }
 }
-

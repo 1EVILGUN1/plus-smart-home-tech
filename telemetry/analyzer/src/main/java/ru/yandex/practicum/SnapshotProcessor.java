@@ -10,12 +10,14 @@ import ru.yandex.practicum.kafka.config.SnapshotConsumerConfig;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.model.SensorEventSnapshot;
 import ru.yandex.practicum.model.SensorState;
+import ru.yandex.practicum.processor.sensor.*;
 import ru.yandex.practicum.service.SnapshotService;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Function;
 
 @Slf4j
 @Component
@@ -24,8 +26,9 @@ public class SnapshotProcessor {
     private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
     private final SnapshotService service;
     private final SnapshotConsumerConfig snapshotConsumerConfig;
+    private final SensorSnapshot sensorSnapshot;
 
-    private static void manageOffsets(ConsumerRecord<Void, SensorsSnapshotAvro> record, int count, KafkaConsumer<Void, SensorsSnapshotAvro> consumer) {
+    private static void managerOffsets(ConsumerRecord<Void, SensorsSnapshotAvro> record, int count, KafkaConsumer<Void, SensorsSnapshotAvro> consumer) {
         currentOffsets.put(
                 new TopicPartition(record.topic(), record.partition()),
                 new OffsetAndMetadata(record.offset() + 1)
@@ -51,15 +54,10 @@ public class SnapshotProcessor {
             consumer.subscribe(snapshotConsumerConfig.getTopics());
 
             while (true) {
-
-                // Периодичное получение записей из Kafka
                 ConsumerRecords<Void, SensorsSnapshotAvro> records = consumer.poll(snapshotConsumerConfig.getConsumer().getConsumeAttemptTimeout());
                 int count = 0;
                 for (ConsumerRecord<Void, SensorsSnapshotAvro> record : records) {
-
                     log.info("Получено сообщение. topic: telemetry.snapshots.v1 {}\n", record.value());
-
-                    // Обработка данных события
                     SensorEventSnapshot snapshot = new SensorEventSnapshot();
                     snapshot.setHubId(record.value().getHubId());
                     snapshot.setTimestapm(record.value().getTimestamp());
@@ -70,66 +68,39 @@ public class SnapshotProcessor {
                         SensorState state = new SensorState();
                         state.setTimestamp(stateAvro.getTimestamp());
 
-                        if (stateAvro.getData() instanceof MotionSensorAvro) {
-                            MotionSensorEvent motionSensorEvent = new MotionSensorEvent();
-                            motionSensorEvent.setHubId(record.value().getHubId());
-                            motionSensorEvent.setId(str);
-                            motionSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                            motionSensorEvent.setMotion(((MotionSensorAvro) stateAvro.getData()).getMotion());
-                            motionSensorEvent.setLinkQuality(((MotionSensorAvro) stateAvro.getData()).getLinkQuality());
-                            motionSensorEvent.setVoltage(((MotionSensorAvro) stateAvro.getData()).getVoltage());
-                            state.setData(motionSensorEvent);
-                        } else if (stateAvro.getData() instanceof TemperatureSensorAvro) {
-                            TemperatureSensorEvent temperatureSensorEvent = new TemperatureSensorEvent();
-                            temperatureSensorEvent.setHubId(record.value().getHubId());
-                            temperatureSensorEvent.setId(str);
-                            temperatureSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                            temperatureSensorEvent.setTemperatureC(((TemperatureSensorAvro) stateAvro.getData()).getTemperatureC());
-                            temperatureSensorEvent.setTemperatureF(((TemperatureSensorAvro) stateAvro.getData()).getTemperatureF());
-                            state.setData(temperatureSensorEvent);
-                        } else if (stateAvro.getData() instanceof LightSensorAvro) {
-                            LightSensorEvent lightSensorEvent = new LightSensorEvent();
-                            lightSensorEvent.setHubId(record.value().getHubId());
-                            lightSensorEvent.setId(str);
-                            lightSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                            lightSensorEvent.setLinkQuality(((LightSensorAvro) stateAvro.getData()).getLinkQuality());
-                            lightSensorEvent.setLuminosity(((LightSensorAvro) stateAvro.getData()).getLuminosity());
-                            state.setData(lightSensorEvent);
-                        } else if (stateAvro.getData() instanceof ClimateSensorAvro) {
-                            ClimateSensorEvent climateSensorEvent = new ClimateSensorEvent();
-                            climateSensorEvent.setHubId(record.value().getHubId());
-                            climateSensorEvent.setId(str);
-                            climateSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                            climateSensorEvent.setTemperatureC(((ClimateSensorAvro) stateAvro.getData()).getTemperatureC());
-                            climateSensorEvent.setHumidity(((ClimateSensorAvro) stateAvro.getData()).getHumidity());
-                            climateSensorEvent.setCo2Level(((ClimateSensorAvro) stateAvro.getData()).getCo2Level());
-                            state.setData(climateSensorEvent);
-                        } else if (stateAvro.getData() instanceof SwitchSensorAvro) {
-                            SwitchSensorEvent switchSensorEvent = new SwitchSensorEvent();
-                            switchSensorEvent.setHubId(record.value().getHubId());
-                            switchSensorEvent.setId(str);
-                            switchSensorEvent.setTimestamp(stateAvro.getTimestamp());
-                            switchSensorEvent.setState(((SwitchSensorAvro) stateAvro.getData()).getState());
-                            state.setData(switchSensorEvent);
-                        }
+                        Map<Class<?>, Function<SensorStateAvro, SensorEvent>> sensorEventMapping = Map.of(
+                                MotionSensorAvro.class, avro ->
+                                        new MotionSensorSnapshot().createSensorSnapshot(avro, record.value(), str),
+                                TemperatureSensorAvro.class, avro ->
+                                        new TemperatureSensorSnapshot().createSensorSnapshot(avro, record.value(), str),
+                                LightSensorAvro.class, avro ->
+                                        new LightSensorSnapshot().createSensorSnapshot(avro, record.value(), str),
+                                ClimateSensorAvro.class, avro ->
+                                        new ClimateSensorSnapshot().createSensorSnapshot(avro, record.value(), str),
+                                SwitchSensorAvro.class, avro ->
+                                        new SwitchSensorSnapshot().createSensorSnapshot(avro, record.value(), str)
+                        );
+
+                        sensorEventMapping.entrySet().stream()
+                                .filter(entry -> entry.getKey().isInstance(stateAvro.getData()))
+                                .findFirst()
+                                .ifPresent(entry -> {
+                                    SensorEvent sensorEvent = entry.getValue().apply(stateAvro);
+                                    state.setData(sensorEvent);
+                                });
 
                         stateMap.put(str, state);
                     }
                     snapshot.setSensorsState(stateMap);
-
-                    // Обработка снимка
                     service.processingSnapshot(snapshot);
-
-                    manageOffsets(record, count, consumer);
+                    managerOffsets(record, count, consumer);
                     count++;
                 }
 
                 consumer.commitAsync();
 
             }
-
         } catch (WakeupException ignored) {
-            // Игнорируем исключение при остановке
         } catch (Exception e) {
             log.error("Ошибка во время обработки событий от датчиков", e);
         } finally {
@@ -142,7 +113,6 @@ public class SnapshotProcessor {
         }
     }
 
-    // Получаем конфигурацию Kafka из свойств
     private Properties getPropertiesConsumerSnapshot() {
         Properties config = new Properties();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, snapshotConsumerConfig.getBootstrapServers());

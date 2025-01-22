@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class CollectorService extends Process {
+public class CollectorService extends ProcessProducerSend {
 
     @Value("${topic.telemetry.sensors}")
     private String topicTelemetrySensors;

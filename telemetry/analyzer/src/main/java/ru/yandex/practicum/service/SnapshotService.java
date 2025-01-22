@@ -4,7 +4,7 @@ import com.google.protobuf.Timestamp;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.*;
-import ru.yandex.practicum.grpc.ScenarioRealizer;
+import ru.yandex.practicum.grpc.ScenarioSerializer;
 import ru.yandex.practicum.grpc.telemetry.event.ActionTypeProto;
 import ru.yandex.practicum.grpc.telemetry.event.DeviceActionProto;
 import ru.yandex.practicum.grpc.telemetry.event.DeviceActionRequest;
@@ -26,7 +26,7 @@ public class SnapshotService {
     private final ScenarioRepository scenarioRepository;
     private final ScenarioConditionRepository scenarioConditionRepository;
     private final SensorRepository sensorRepository;
-    private final ScenarioRealizer scenarioRealizer;
+    private final ScenarioSerializer scenarioSerializer;
 
     public void processingSnapshot(SensorEventSnapshot snapshot) {
         System.out.println("Получен снапшот");
@@ -118,7 +118,7 @@ public class SnapshotService {
                     break;
             }
 
-            scenarioRealizer.send(request);
+            scenarioSerializer.send(request);
         }
 
     }

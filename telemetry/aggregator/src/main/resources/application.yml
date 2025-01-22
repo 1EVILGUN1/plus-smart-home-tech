@@ -9,3 +9,9 @@ kafka:
     bootstrap-servers: localhost:9092
     key-serializer: org.apache.kafka.common.serialization.VoidSerializer
     value-serializer: com.example.SensorsSnapshotSerializer
+  topics:
+    sensors: telemetry.sensors.v1
+    snapshots: telemetry.snapshots.v1
+offset:
+  commit:
+    threshold: 10
