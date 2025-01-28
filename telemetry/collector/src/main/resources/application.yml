@@ -1,9 +1,12 @@
-topic:
-  telemetry:
-    sensors: "telemetry.sensors.v1"
-    hubs: "telemetry.hubs.v1"
-kafka:
-  producer:
-    bootstrap-servers: "localhost:9092"
-    key-serializer: org.apache.kafka.common.serialization.VoidSerializer
-    value-serializer: com.yourcompany.GeneralAvroSerializer
+spring:
+  application:
+    name: collector
+
+  config:
+    import: configserver:http://localhost:8888
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        useRandomPolicy: true
+        max-interval: 6000

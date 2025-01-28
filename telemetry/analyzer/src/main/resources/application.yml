@@ -1,51 +1,12 @@
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        format_sql: true
-        show_sql: true
-  sql:
-    init:
-      mode: always
-  datasource:
-    driverClassName: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/db-analyzer
-    username: test
-    password: test
+  application:
+    name: analyzer
 
-grpc:
-  client:
-    hub-router:
-      address: 'static://localhost:59090'
-      enableKeepAlive: true
-      keepAliveWithoutCalls: true
-      negotiationType: plaintext
-offset:
-  commit:
-    threshold: 10
-kafka:
-  hub-consumer:
-    bootstrap-servers: localhost:9092
-    group-id: some.group.id2
-    client-id: SomeConsumer2
-    topics:
-      - telemetry.hubs.v1
-    consumer:
-      key-deserializer: org.apache.kafka.common.serialization.VoidDeserializer
-      value-deserializer: com.example.HubEventDeserializer
-      consume-attempt-timeout: 1000ms
-
-  snapshot-consumer:
-    bootstrap-servers: localhost:9092
-    group-id: some.group.id1
-    client-id: SomeConsumer1
-    topics:
-      - telemetry.snapshots.v1
-    consumer:
-      key-deserializer: org.apache.kafka.common.serialization.VoidDeserializer
-      value-deserializer: com.example.SensorsSnapshotDeserializer
-      consume-attempt-timeout: 1000ms
-
-
+  config:
+    import: configserver:http://localhost:8888
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        useRandomPolicy: true
+        max-interval: 6000
