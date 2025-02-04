@@ -1,0 +1,17 @@
+kafka:
+  consumer:
+    bootstrap-servers: localhost:9092
+    group-id: some.group.id
+    client-id: SomeConsumer
+    key-deserializer: org.apache.kafka.common.serialization.VoidDeserializer
+    value-deserializer: com.example.SensorEventDeserializer
+  producer:
+    bootstrap-servers: localhost:9092
+    key-serializer: org.apache.kafka.common.serialization.VoidSerializer
+    value-serializer: com.example.SensorsSnapshotSerializer
+  topics:
+    sensors: telemetry.sensors.v1
+    snapshots: telemetry.snapshots.v1
+offset:
+  commit:
+    threshold: 10
