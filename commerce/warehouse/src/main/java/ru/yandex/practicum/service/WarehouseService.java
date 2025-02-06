@@ -2,7 +2,6 @@ package ru.yandex.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.dto.AddressDto;
 import ru.yandex.practicum.dto.BookedProductDto;
@@ -17,7 +16,6 @@ import ru.yandex.practicum.request.AddProductToWarehouseRequest;
 import ru.yandex.practicum.request.NewProductInWarehouseRequest;
 
 import java.security.SecureRandom;
-import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -27,45 +25,36 @@ public class WarehouseService {
 
     private static final String[] ADDRESSES = {"ADDRESS_1", "ADDRESS_2"};
     private static final String CURRENT_ADDRESS = ADDRESSES[new SecureRandom().nextInt(ADDRESSES.length)];
+    private final WarehouseMapper warehouseMapper;
     private final ProductWarehouseRepository repository;
 
     public void createProduct(NewProductInWarehouseRequest request) {
         log.info("Получен запрос на добавление нового продукта на склад: {}", request);
 
-        Optional<ProductWarehouse> existingProduct = repository.findByProductId(request.getProductId());
-
-        if (existingProduct.isPresent()) {
+        if (repository.existsByProductId(request.getProductId())) {
             log.warn("Продукт с ID {} уже есть на складе", request.getProductId());
             throw new SpecifiedProductAlreadyInWarehouseException("Продукт уже добавлен на склад");
         }
 
-        ProductWarehouse product = WarehouseMapper.INSTANCE.newProductInWarehouseRequestToProductWarehouse(request);
+        ProductWarehouse product = warehouseMapper.newProductInWarehouseRequestToProductWarehouse(request);
         repository.save(product);
 
         log.info("Продукт с ID {} успешно добавлен на склад", request.getProductId());
     }
 
-    public BookedProductDto checkQuantity(ShoppingCartDto dto) {
+    public BookedProductDto checkQuantity(ShoppingCartDto dto) throws NoSpecifiedProductInWarehouseException, ProductInShoppingCartLowQuantityInWarehouse {
         log.info("Проверка наличия товаров на складе для корзины пользователя");
 
         BookedProductDto bookedProductDto = new BookedProductDto();
 
         for (UUID productId : dto.getProducts().keySet()) {
-            Optional<ProductWarehouse> warehouseProduct = repository.findByProductId(productId);
+            ProductWarehouse product = repository.findByProductId(productId)
+                    .orElseThrow(() -> new NoSpecifiedProductInWarehouseException("Продукт не найден на складе"));
 
-            if (warehouseProduct.isEmpty()) {
-                log.error("Продукт с ID {} не найден на складе", productId);
-                throw new NoSpecifiedProductInWarehouseException(HttpStatus.BAD_REQUEST, "Продукт не найден на складе");
-            }
-
-            ProductWarehouse product = warehouseProduct.get();
             int requestedQuantity = dto.getProducts().get(productId);
 
             if (product.getQuantity() < requestedQuantity) {
-                log.error("Недостаточное количество товара с ID {} на складе. Запрашиваемое количество: {}, доступное: {}",
-                        productId, requestedQuantity, product.getQuantity());
-                throw new ProductInShoppingCartLowQuantityInWarehouse(HttpStatus.BAD_REQUEST,
-                        "Товар из корзины не находится в требуемом количестве на складе");
+                throw new ProductInShoppingCartLowQuantityInWarehouse("Товар из корзины не находится в требуемом количестве на складе");
             }
 
             bookedProductDto.setDeliveryVolume(
@@ -89,17 +78,12 @@ public class WarehouseService {
         return bookedProductDto;
     }
 
-    public void addProduct(AddProductToWarehouseRequest request) {
+    public void addProduct(AddProductToWarehouseRequest request) throws NoSpecifiedProductInWarehouseException {
         log.info("Добавление товара на склад. ID продукта: {}, Количество: {}", request.getProductId(), request.getQuantity());
 
-        Optional<ProductWarehouse> warehouseProduct = repository.findByProductId(request.getProductId());
+        ProductWarehouse product = repository.findByProductId(request.getProductId())
+                .orElseThrow(() -> new NoSpecifiedProductInWarehouseException("Продукт не найден на складе"));
 
-        if (warehouseProduct.isEmpty()) {
-            log.error("Продукт с ID {} не найден на складе", request.getProductId());
-            throw new NoSpecifiedProductInWarehouseException(HttpStatus.BAD_REQUEST, "Продукт не найден на складе");
-        }
-
-        ProductWarehouse product = warehouseProduct.get();
         product.setQuantity(product.getQuantity() + request.getQuantity());
 
         repository.save(product);

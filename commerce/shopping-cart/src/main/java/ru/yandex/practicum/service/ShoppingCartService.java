@@ -26,6 +26,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ShoppingCartService {
 
+    private final ShoppingCartMapper shoppingCartMapper;
+    private final BookedProductMapper bookedProductMapper;
     private final ShoppingCartRepository repository;
     private final BookedProductRepository bookedProductRepository;
     private final WarehouseClient client;
@@ -39,20 +41,20 @@ public class ShoppingCartService {
             cart.getProducts().put(productId, quantity);
         });
 
-        ShoppingCartDto cartDto = ShoppingCartMapper.INSTANCE.shoppingCartToDto(cart);
+        ShoppingCartDto cartDto = shoppingCartMapper.shoppingCartToDto(cart);
         log.debug("Проверка доступности товаров на складе");
         client.checkQuantity(cartDto);
 
         ShoppingCart savedCart = repository.save(cart);
         log.info("Всего {} товаров в корзине пользователя: {}", savedCart.getProducts().size(), userName);
 
-        return ShoppingCartMapper.INSTANCE.shoppingCartToDto(savedCart);
+        return shoppingCartMapper.shoppingCartToDto(savedCart);
     }
 
     public ShoppingCartDto getShoppingCart(String userName) {
         log.info("Получение корзины пользователя: {}", userName);
         return getActiveCart(userName)
-                .map(ShoppingCartMapper.INSTANCE::shoppingCartToDto)
+                .map(shoppingCartMapper::shoppingCartToDto)
                 .orElse(null);
     }
 
@@ -77,7 +79,7 @@ public class ShoppingCartService {
         ShoppingCart updatedCart = repository.save(cart);
         log.info("Удалено {} товаров из корзины", productsToRemove.size());
 
-        return ShoppingCartMapper.INSTANCE.shoppingCartToDto(updatedCart);
+        return shoppingCartMapper.shoppingCartToDto(updatedCart);
     }
 
     public ShoppingCartDto changeQuantityProducts(String userName, ChangeProductQuantityRequest request) {
@@ -94,7 +96,7 @@ public class ShoppingCartService {
         cart.getProducts().put(productId, request.getNewQuantity());
 
         ShoppingCart updatedCart = repository.save(cart);
-        return ShoppingCartMapper.INSTANCE.shoppingCartToDto(updatedCart);
+        return shoppingCartMapper.shoppingCartToDto(updatedCart);
     }
 
     public BookedProductDto bookedProducts(String userName) {
@@ -105,7 +107,7 @@ public class ShoppingCartService {
         BookedProduct savedBooking = bookedProductRepository.save(bookedProduct);
         log.info("Товары успешно забронированы. ID бронирования: {}", savedBooking.getId());
 
-        return BookedProductMapper.INSTANCE.bookedProductsToDto(savedBooking);
+        return bookedProductMapper.bookedProductsToDto(savedBooking);
     }
 
     private ShoppingCart getOrCreateActiveCart(String userName) {

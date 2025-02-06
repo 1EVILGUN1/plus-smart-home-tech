@@ -15,18 +15,18 @@ import ru.yandex.practicum.request.NewProductInWarehouseRequest;
 public interface WarehouseClient {
 
     @PutMapping
-    public void createProduct(@RequestBody NewProductInWarehouseRequest product);
+    void createProduct(@RequestBody NewProductInWarehouseRequest product);
 
 
     @PostMapping("/check")
-    public BookedProductDto checkQuantity(@RequestBody ShoppingCartDto cart);
+    BookedProductDto checkQuantity(@RequestBody ShoppingCartDto cart);
 
 
     @PostMapping("/add")
-    public void addProduct(@RequestBody AddProductToWarehouseRequest product);
+    void addProduct(@RequestBody AddProductToWarehouseRequest product);
 
 
     @GetMapping("/address")
-    public AddressDto getAddress();
+    AddressDto getAddress();
 
 }

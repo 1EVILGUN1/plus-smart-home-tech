@@ -13,7 +13,6 @@ import ru.yandex.practicum.service.WarehouseService;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/warehouse")
 @RequiredArgsConstructor
 public class WarehouseController implements WarehouseClient {
 

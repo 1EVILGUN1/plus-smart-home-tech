@@ -9,23 +9,23 @@ import ru.yandex.practicum.dto.enums.ProductCategory;
 
 import java.util.UUID;
 
-@FeignClient(name = "shopping-store")
+@FeignClient(name = "shopping-store", path = "/api/v1/shopping-store")
 public interface ShoppingStoreClient {
     @PutMapping
-    public ProductDto create(@RequestBody ProductDto productDto);
+    ProductDto create(@RequestBody ProductDto productDto);
 
     @GetMapping
-    public Page<ProductDto> getProducts(@RequestParam ProductCategory category, Pageable pageable);
+    Page<ProductDto> getProducts(@RequestParam ProductCategory category, Pageable pageable);
 
     @GetMapping("/{productId}")
-    public ProductDto getProduct(@PathVariable UUID productId);
+    ProductDto getProduct(@PathVariable UUID productId);
 
     @PostMapping
-    public ProductDto update(@RequestBody ProductDto productDto);
+    ProductDto update(@RequestBody ProductDto productDto);
 
     @PostMapping("/removeProductFromStore")
-    public Boolean remove(@RequestBody UUID productId);
+    Boolean remove(@RequestBody UUID productId);
 
     @PostMapping("/quantityState")
-    public Boolean updateQuantityState(@RequestParam UUID productId, @RequestParam String quantityState);
+    Boolean updateQuantityState(@RequestParam UUID productId, @RequestParam String quantityState);
 }
