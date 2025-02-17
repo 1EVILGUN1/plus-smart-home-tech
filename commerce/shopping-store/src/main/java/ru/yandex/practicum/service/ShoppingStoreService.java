@@ -21,6 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ShoppingStoreService {
 
+    private final ProductMapper productMapper;
     private final ShoppingStoreRepository repository;
     private final ProductMapper productMapper;
 
