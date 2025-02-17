@@ -8,20 +8,20 @@ import ru.yandex.practicum.request.ChangeProductQuantityRequest;
 import java.util.Map;
 import java.util.UUID;
 
-@FeignClient(name = "shopping-cart")
+@FeignClient(name = "shopping-cart", path = "/api/v1/shopping-cart")
 public interface ShoppingCartClient {
     @PutMapping
-    public ShoppingCartDto addProducts(@RequestParam String userName, @RequestBody Map<UUID, Integer> dto);
+    ShoppingCartDto addProducts(@RequestParam String userName, @RequestBody Map<UUID, Integer> dto);
 
     @GetMapping
-    public ShoppingCartDto getShoppingCart(@RequestParam String userName);
+    ShoppingCartDto getShoppingCart(@RequestParam String userName);
 
     @DeleteMapping
-    public void deleteShoppingCart(@RequestParam String userName);
+    void deleteShoppingCart(@RequestParam String userName);
 
     @PostMapping("/remove")
-    public ShoppingCartDto removeProducts(@RequestParam String userName, @RequestBody Map<UUID, Integer> dto);
+    ShoppingCartDto removeProducts(@RequestParam String userName, @RequestBody Map<UUID, Integer> dto);
 
     @PostMapping("/change-quantity")
-    public ShoppingCartDto changeQuantityProducts(@RequestParam String userName, @RequestBody ChangeProductQuantityRequest request);
+    ShoppingCartDto changeQuantityProducts(@RequestParam String userName, @RequestBody ChangeProductQuantityRequest request);
 }
