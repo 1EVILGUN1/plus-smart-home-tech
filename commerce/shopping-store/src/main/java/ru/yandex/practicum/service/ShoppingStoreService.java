@@ -23,7 +23,6 @@ public class ShoppingStoreService {
 
     private final ProductMapper productMapper;
     private final ShoppingStoreRepository repository;
-    private final ProductMapper productMapper;
 
     public ProductDto create(ProductDto dto) {
         log.info("Создание нового продукта: {}", dto);
