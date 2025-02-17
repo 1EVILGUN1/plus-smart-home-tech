@@ -9,24 +9,37 @@ import ru.yandex.practicum.dto.AddressDto;
 import ru.yandex.practicum.dto.BookedProductDto;
 import ru.yandex.practicum.dto.ShoppingCartDto;
 import ru.yandex.practicum.request.AddProductToWarehouseRequest;
+import ru.yandex.practicum.request.AssemblyProductsForOrderRequest;
 import ru.yandex.practicum.request.NewProductInWarehouseRequest;
+import ru.yandex.practicum.request.ShippedToDeliveryRequest;
+
+import java.util.Map;
+import java.util.UUID;
 
 @FeignClient(name = "warehouse", path = "/api/v1/warehouse")
 public interface WarehouseClient {
 
     @PutMapping
-    public void createProduct(@RequestBody NewProductInWarehouseRequest product);
+    void createProduct(@RequestBody NewProductInWarehouseRequest product);
 
 
     @PostMapping("/check")
-    public BookedProductDto checkQuantity(@RequestBody ShoppingCartDto cart);
+    BookedProductDto checkQuantity(@RequestBody ShoppingCartDto cart);
 
 
     @PostMapping("/add")
-    public void addProduct(@RequestBody AddProductToWarehouseRequest product);
+    void addProduct(@RequestBody AddProductToWarehouseRequest product);
 
 
     @GetMapping("/address")
-    public AddressDto getAddress();
+    AddressDto getAddress();
 
+    @PostMapping("/return")
+    void returnProducts(Map<UUID, Integer> products);
+
+    @PostMapping("/shipped")
+    void shipped(ShippedToDeliveryRequest request);
+
+    @PostMapping("/assembly")
+    BookedProductDto assembly(AssemblyProductsForOrderRequest request);
 }
