@@ -1,13 +1,11 @@
 package ru.yandex.practicum.mapper;
 
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
+import org.mapstruct.MappingConstants;
 import ru.yandex.practicum.dto.OrderDto;
 import ru.yandex.practicum.model.Order;
 
-@Mapper
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface OrderMapper {
-    OrderMapper INSTANCE = Mappers.getMapper(OrderMapper.class);
-
     OrderDto orderToDto(Order order);
 }

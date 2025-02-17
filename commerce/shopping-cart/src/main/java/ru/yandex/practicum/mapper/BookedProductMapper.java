@@ -1,13 +1,11 @@
 package ru.yandex.practicum.mapper;
 
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
+import org.mapstruct.MappingConstants;
 import ru.yandex.practicum.dto.BookedProductDto;
 import ru.yandex.practicum.model.BookedProduct;
 
-@Mapper
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface BookedProductMapper {
-    BookedProductMapper INSTANCE = Mappers.getMapper(BookedProductMapper.class);
-
     BookedProductDto bookedProductsToDto(BookedProduct bookedProduct);
 }

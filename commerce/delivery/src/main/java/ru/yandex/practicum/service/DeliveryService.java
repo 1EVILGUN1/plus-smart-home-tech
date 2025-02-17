@@ -1,7 +1,6 @@
 package ru.yandex.practicum.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.client.OrderClient;
 import ru.yandex.practicum.client.WarehouseClient;
@@ -31,16 +30,17 @@ public class DeliveryService {
     private final DeliveryRepository repository;
     private final OrderClient orderClient;
     private final WarehouseClient warehouseClient;
+    private final DeliveryMapper deliveryMapper;
 
     public DeliveryDto createDelivery(DeliveryDto deliveryDto) {
-        Delivery delivery = DeliveryMapper.INSTANCE.dtoToDelivery(deliveryDto);
-        return DeliveryMapper.INSTANCE.DeliveryToDto(repository.save(delivery));
+        Delivery delivery = deliveryMapper.dtoToDelivery(deliveryDto);
+        return deliveryMapper.DeliveryToDto(repository.save(delivery));
     }
 
     public void successDelivery(UUID orderId) {
         Optional<Delivery> delivery = repository.findByOrderId(orderId);
         if (delivery.isEmpty()) {
-            throw new NoDeliveryFoundException(HttpStatus.NOT_FOUND, "Доставка не найдена");
+            throw new NoDeliveryFoundException("Доставка не найдена");
         }
 
         delivery.get().setDeliveryState(DeliveryState.DELIVERED);
@@ -51,7 +51,7 @@ public class DeliveryService {
     public void pickDelivery(UUID orderId) {
         Optional<Delivery> delivery = repository.findByOrderId(orderId);
         if (delivery.isEmpty()) {
-            throw new NoDeliveryFoundException(HttpStatus.NOT_FOUND, "Доставка не найдена");
+            throw new NoDeliveryFoundException("Доставка не найдена");
         }
 
         delivery.get().setDeliveryState(DeliveryState.IN_PROGRESS);
@@ -65,7 +65,7 @@ public class DeliveryService {
     public void failDelivery(UUID orderId) {
         Optional<Delivery> delivery = repository.findByOrderId(orderId);
         if (delivery.isEmpty()) {
-            throw new NoDeliveryFoundException(HttpStatus.NOT_FOUND, "Доставка не найдена");
+            throw new NoDeliveryFoundException("Доставка не найдена");
         }
 
         delivery.get().setDeliveryState(DeliveryState.FAILED);

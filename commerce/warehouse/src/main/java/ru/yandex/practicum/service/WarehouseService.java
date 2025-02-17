@@ -2,7 +2,6 @@ package ru.yandex.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.dto.AddressDto;
 import ru.yandex.practicum.dto.BookedProductDto;
@@ -25,56 +24,38 @@ import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WarehouseService {
-
     private static final String[] ADDRESSES = {"ADDRESS_1", "ADDRESS_2"};
     private static final String CURRENT_ADDRESS = ADDRESSES[new SecureRandom().nextInt(ADDRESSES.length)];
+    private final WarehouseMapper warehouseMapper;
+    private final BookedProductMapper bookedProductMapper;
     private final ProductWarehouseRepository repository;
     private final BookedProductRepository bookedProductRepository;
 
     public void createProduct(NewProductInWarehouseRequest request) {
         log.info("Получен запрос на добавление нового продукта на склад: {}", request);
-
-        Optional<ProductWarehouse> existingProduct = repository.findByProductId(request.getProductId());
-
-        if (existingProduct.isPresent()) {
+        if (repository.existsByProductId(request.getProductId())) {
             log.warn("Продукт с ID {} уже есть на складе", request.getProductId());
             throw new SpecifiedProductAlreadyInWarehouseException("Продукт уже добавлен на склад");
         }
-
-        ProductWarehouse product = WarehouseMapper.INSTANCE.newProductInWarehouseRequestToProductWarehouse(request);
+        ProductWarehouse product = warehouseMapper.newProductInWarehouseRequestToProductWarehouse(request);
         repository.save(product);
-
         log.info("Продукт с ID {} успешно добавлен на склад", request.getProductId());
     }
 
-    public BookedProductDto checkQuantity(ShoppingCartDto dto) {
+    public BookedProductDto checkQuantity(ShoppingCartDto dto) throws NoSpecifiedProductInWarehouseException, ProductInShoppingCartLowQuantityInWarehouse {
         log.info("Проверка наличия товаров на складе для корзины пользователя");
-
         BookedProductDto bookedProductDto = new BookedProductDto();
-
         for (UUID productId : dto.getProducts().keySet()) {
-            Optional<ProductWarehouse> warehouseProduct = repository.findByProductId(productId);
-
-            if (warehouseProduct.isEmpty()) {
-                log.error("Продукт с ID {} не найден на складе", productId);
-                throw new NoSpecifiedProductInWarehouseException(HttpStatus.BAD_REQUEST, "Продукт не найден на складе");
-            }
-
-            ProductWarehouse product = warehouseProduct.get();
+            ProductWarehouse product = repository.findByProductId(productId)
+                    .orElseThrow(() -> new NoSpecifiedProductInWarehouseException("Продукт не найден на складе"));
             int requestedQuantity = dto.getProducts().get(productId);
-
             if (product.getQuantity() < requestedQuantity) {
-                log.error("Недостаточное количество товара с ID {} на складе. Запрашиваемое количество: {}, доступное: {}",
-                        productId, requestedQuantity, product.getQuantity());
-                throw new ProductInShoppingCartLowQuantityInWarehouse(HttpStatus.BAD_REQUEST,
-                        "Товар из корзины не находится в требуемом количестве на складе");
+                throw new ProductInShoppingCartLowQuantityInWarehouse("Товар из корзины не находится в требуемом количестве на складе");
             }
-
             bookedProductDto.setDeliveryVolume(
                     bookedProductDto.getDeliveryVolume() +
                     product.getDimension().getHeight() *
@@ -84,40 +65,26 @@ public class WarehouseService {
             bookedProductDto.setDeliveryWeight(
                     bookedProductDto.getDeliveryWeight() + product.getWeight()
             );
-
             if (product.getFragile()) {
                 bookedProductDto.setFragile(true);
             }
-
             log.debug("Продукт с ID {} прошел проверку наличия", productId);
         }
-
         log.info("Все товары успешно проверены и зарезервированы");
         return bookedProductDto;
     }
 
-    public void addProduct(AddProductToWarehouseRequest request) {
+    public void addProduct(AddProductToWarehouseRequest request) throws NoSpecifiedProductInWarehouseException {
         log.info("Добавление товара на склад. ID продукта: {}, Количество: {}", request.getProductId(), request.getQuantity());
-
-        Optional<ProductWarehouse> warehouseProduct = repository.findByProductId(request.getProductId());
-
-        if (warehouseProduct.isEmpty()) {
-            log.error("Продукт с ID {} не найден на складе", request.getProductId());
-            throw new NoSpecifiedProductInWarehouseException(HttpStatus.BAD_REQUEST, "Продукт не найден на складе");
-        }
-
-        ProductWarehouse product = warehouseProduct.get();
+        ProductWarehouse product = repository.findByProductId(request.getProductId())
+                .orElseThrow(() -> new NoSpecifiedProductInWarehouseException("Продукт не найден на складе"));
         product.setQuantity(product.getQuantity() + request.getQuantity());
-
         repository.save(product);
-
         log.info("Количество продукта с ID {} на складе успешно обновлено. Новое количество: {}",
                 request.getProductId(), product.getQuantity());
     }
-
     public AddressDto getAddress() {
         log.info("Запрос на получение адреса склада");
-
         AddressDto address = AddressDto.builder()
                 .city(CURRENT_ADDRESS)
                 .country(CURRENT_ADDRESS)
@@ -125,11 +92,9 @@ public class WarehouseService {
                 .house(CURRENT_ADDRESS)
                 .street(CURRENT_ADDRESS)
                 .build();
-
         log.info("Возвращен адрес склада: {}", address);
         return address;
     }
-
     public void shipped(ShippedToDeliveryRequest request) {
         Optional<BookedProduct> bookedProduct = bookedProductRepository.findByOrderId(request.getOrderId());
         bookedProduct.get().setDeliveryId(request.getDeliveryId());
@@ -140,7 +105,7 @@ public class WarehouseService {
         for (UUID key : products.keySet()) {
             Optional<ProductWarehouse> productWarehouse = repository.findByProductId(key);
             if (productWarehouse.isEmpty()) {
-                throw new NoSpecifiedProductInWarehouseException(HttpStatus.NOT_FOUND, "Товар не найден");
+                throw new NoSpecifiedProductInWarehouseException("Товар не найден");
             }
             productWarehouse.get().setQuantity(productWarehouse.get().getQuantity() +
                                                products.get(key));
@@ -156,10 +121,10 @@ public class WarehouseService {
         for (UUID key : request.getProducts().keySet()) {
             Optional<ProductWarehouse> productWarehouse = repository.findByProductId(key);
             if (productWarehouse.isEmpty()) {
-                throw new NoSpecifiedProductInWarehouseException(HttpStatus.NOT_FOUND, "Товар не найден");
+                throw new NoSpecifiedProductInWarehouseException("Товар не найден");
             }
             if (productWarehouse.get().getQuantity() < request.getProducts().get(key)) {
-                throw new ProductInShoppingCartLowQuantityInWarehouse(HttpStatus.NOT_FOUND, "Товар не находится в требуемом количестве на складе");
+                throw new ProductInShoppingCartLowQuantityInWarehouse("Товар не находится в требуемом количестве на складе");
             }
             productWarehouse.get().setQuantity(productWarehouse.get().getQuantity() - request.getProducts().get(key));
             repository.save(productWarehouse.get());
@@ -170,6 +135,6 @@ public class WarehouseService {
                 bookedProduct.setFragile(true);
             }
         }
-        return BookedProductMapper.INSTANCE.bookedProductToDto(bookedProductRepository.save(bookedProduct));
+        return bookedProductMapper.bookedProductToDto(bookedProductRepository.save(bookedProduct));
     }
 }

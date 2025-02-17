@@ -1,7 +1,6 @@
 package ru.yandex.practicum.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.client.OrderClient;
 import ru.yandex.practicum.dto.OrderDto;
@@ -21,18 +20,19 @@ public class PaymentService {
 
     private final PaymentRepository repository;
     private final OrderClient orderClient;
+    private final PaymentMapper paymentMapper;
 
     public PaymentDto createPayment(OrderDto orderDto) {
         Payment payment = new Payment();
 
         payment.setStatus(PaymentStatus.PENDING);
-        return PaymentMapper.INSTANCE.paymentToDto(repository.save(payment));
+        return paymentMapper.paymentToDto(repository.save(payment));
     }
 
     public Double calculateTotalCost(OrderDto orderDto) {
         Optional<Payment> payment = repository.findById(orderDto.getPaymentId());
         if (payment.isEmpty()) {
-            throw new NoPaymentFoundException(HttpStatus.NOT_FOUND, "Оплата не найдена");
+            throw new NoPaymentFoundException("Оплата не найдена");
         }
 
         payment.get().setDeliveryTotal(50d);
@@ -40,14 +40,14 @@ public class PaymentService {
         payment.get().setTotalPayment(orderDto.getProductPrice() +
                                       payment.get().getDeliveryTotal() +
                                       payment.get().getFeeTotal());
-        PaymentMapper.INSTANCE.paymentToDto(repository.save(payment.get()));
+        paymentMapper.paymentToDto(repository.save(payment.get()));
         return payment.get().getTotalPayment();
     }
 
     public void successPayment(UUID orderId) {
         Optional<Payment> payment = repository.findByOrderId(orderId);
         if (payment.isEmpty()) {
-            throw new NoPaymentFoundException(HttpStatus.NOT_FOUND, "Оплата не найдена");
+            throw new NoPaymentFoundException("Оплата не найдена");
         }
 
         payment.get().setStatus(PaymentStatus.SUCCESS);
@@ -58,7 +58,7 @@ public class PaymentService {
     public Double calculateProductCost(OrderDto orderDto) {
         Optional<Payment> payment = repository.findById(orderDto.getPaymentId());
         if (payment.isEmpty()) {
-            throw new NoPaymentFoundException(HttpStatus.NOT_FOUND, "Оплата не найдена");
+            throw new NoPaymentFoundException("Оплата не найдена");
         }
 
         return orderDto.getProductPrice() + orderDto.getProductPrice() / 10;
@@ -67,7 +67,7 @@ public class PaymentService {
     public void failedPayment(UUID orderId) {
         Optional<Payment> payment = repository.findByOrderId(orderId);
         if (payment.isEmpty()) {
-            throw new NoPaymentFoundException(HttpStatus.NOT_FOUND, "Оплата не найдена");
+            throw new NoPaymentFoundException("Оплата не найдена");
         }
 
         payment.get().setStatus(PaymentStatus.FAILED);
