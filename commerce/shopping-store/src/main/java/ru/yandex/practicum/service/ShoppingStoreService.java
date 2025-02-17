@@ -21,23 +21,24 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ShoppingStoreService {
 
+    private final ProductMapper productMapper;
     private final ShoppingStoreRepository repository;
 
     public ProductDto create(ProductDto dto) {
         log.info("Создание нового продукта: {}", dto);
 
-        Product product = ProductMapper.INSTANCE.dtoToProduct(dto);
+        Product product = productMapper.dtoToProduct(dto);
         Product savedProduct = repository.save(product);
 
         log.info("Продукт успешно создан с ID: {}", savedProduct.getProductId());
-        return ProductMapper.INSTANCE.productToDto(savedProduct);
+        return productMapper.productToDto(savedProduct);
     }
 
     public Page<ProductDto> getProducts(ProductCategory category, Pageable pageable) {
         log.info("Запрос списка продуктов категории: {}", category);
 
         Page<ProductDto> products = repository.findAllByProductCategory(category, pageable)
-                .map(ProductMapper.INSTANCE::productToDto);
+                .map(productMapper::productToDto);
 
         log.info("Найдено {} продуктов в категории {}", products.getTotalElements(), category);
         return products;
@@ -49,7 +50,7 @@ public class ShoppingStoreService {
         return repository.findById(productId)
                 .map(product -> {
                     log.info("Продукт найден: {}", product);
-                    return ProductMapper.INSTANCE.productToDto(product);
+                    return productMapper.productToDto(product);
                 })
                 .orElseGet(() -> {
                     log.warn("Продукт с ID {} не найден", productId);
@@ -66,12 +67,12 @@ public class ShoppingStoreService {
                     return new NotFoundException(String.format("Продукт с ID %s не найден", dto.getProductId()));
                 });
 
-        Product updatedProduct = ProductMapper.INSTANCE.dtoToProduct(dto);
+        Product updatedProduct = productMapper.dtoToProduct(dto);
         updatedProduct.setProductId(existingProduct.getProductId()); // сохраняем ID
         Product savedProduct = repository.save(updatedProduct);
 
         log.info("Продукт с ID {} успешно обновлен", savedProduct.getProductId());
-        return ProductMapper.INSTANCE.productToDto(savedProduct);
+        return productMapper.productToDto(savedProduct);
     }
 
     public Boolean remove(UUID productId) {

@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface ProductWarehouseRepository extends JpaRepository<ProductWarehouse, UUID> {
     Optional<ProductWarehouse> findByProductId(UUID productId);
+
+    boolean existsByProductId(UUID productId);
 }
