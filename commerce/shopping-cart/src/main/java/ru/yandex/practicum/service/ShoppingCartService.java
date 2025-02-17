@@ -31,8 +31,6 @@ public class ShoppingCartService {
     private final ShoppingCartRepository repository;
     private final BookedProductRepository bookedProductRepository;
     private final WarehouseClient client;
-    private final ShoppingCartMapper shoppingCartMapper;
-    private final BookedProductMapper bookedProductMapper;
 
     public ShoppingCartDto addProducts(Map<UUID, Integer> products, String userName) {
         log.info("Добавление товаров в корзину для пользователя: {}", userName);
