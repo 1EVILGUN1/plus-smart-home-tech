@@ -7,7 +7,7 @@ import ru.yandex.practicum.dto.PaymentDto;
 
 import java.util.UUID;
 
-@FeignClient(name = "payment-client")
+@FeignClient(name = "payment-client", path = "/api/v1/payment")
 public interface PaymentClient {
 
     @PostMapping

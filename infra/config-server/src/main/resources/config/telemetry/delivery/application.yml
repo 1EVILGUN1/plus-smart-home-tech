@@ -1,7 +1,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -18,3 +18,9 @@ spring:
 
 server:
   port: 0
+delivery:
+  base-cost: 5.0
+  fragile-multiplier: 0.2
+  weight-multiplier: 0.3
+  volume-multiplier: 0.2
+  address-difference-multiplier: 0.2

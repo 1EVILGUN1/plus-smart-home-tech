@@ -1,7 +1,6 @@
 package ru.yandex.practicum.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.client.OrderClient;
 import ru.yandex.practicum.dto.OrderDto;
@@ -12,7 +11,6 @@ import ru.yandex.practicum.service.OrderService;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/order")
 @RequiredArgsConstructor
 public class OrderController implements OrderClient {
 
@@ -40,7 +38,7 @@ public class OrderController implements OrderClient {
 
     @Override
     public OrderDto failedPaymentOrder(UUID orderId) {
-        return service.faildeDeliveryOrder(orderId);
+        return service.failedDeliveryOrder(orderId);
     }
 
     @Override
@@ -50,7 +48,7 @@ public class OrderController implements OrderClient {
 
     @Override
     public OrderDto faildeDeliveryOrder(UUID orderId) {
-        return service.faildeDeliveryOrder(orderId);
+        return service.failedDeliveryOrder(orderId);
     }
 
     @Override

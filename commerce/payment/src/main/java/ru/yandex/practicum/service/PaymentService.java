@@ -11,7 +11,6 @@ import ru.yandex.practicum.model.Payment;
 import ru.yandex.practicum.model.PaymentStatus;
 import ru.yandex.practicum.repository.PaymentRepository;
 
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -24,54 +23,46 @@ public class PaymentService {
 
     public PaymentDto createPayment(OrderDto orderDto) {
         Payment payment = new Payment();
-
         payment.setStatus(PaymentStatus.PENDING);
         return paymentMapper.paymentToDto(repository.save(payment));
     }
 
     public Double calculateTotalCost(OrderDto orderDto) {
-        Optional<Payment> payment = repository.findById(orderDto.getPaymentId());
-        if (payment.isEmpty()) {
-            throw new NoPaymentFoundException("Оплата не найдена");
-        }
+        Payment payment = findPaymentById(orderDto.getPaymentId());
 
-        payment.get().setDeliveryTotal(50d);
-        payment.get().setFeeTotal(orderDto.getProductPrice() / 10);
-        payment.get().setTotalPayment(orderDto.getProductPrice() +
-                                      payment.get().getDeliveryTotal() +
-                                      payment.get().getFeeTotal());
-        paymentMapper.paymentToDto(repository.save(payment.get()));
-        return payment.get().getTotalPayment();
+        payment.setDeliveryTotal(50d);
+        payment.setFeeTotal(orderDto.getProductPrice() / 10);
+        payment.setTotalPayment(orderDto.getProductPrice() + payment.getDeliveryTotal() + payment.getFeeTotal());
+
+        repository.save(payment);
+        return payment.getTotalPayment();
     }
 
     public void successPayment(UUID orderId) {
-        Optional<Payment> payment = repository.findByOrderId(orderId);
-        if (payment.isEmpty()) {
-            throw new NoPaymentFoundException("Оплата не найдена");
-        }
-
-        payment.get().setStatus(PaymentStatus.SUCCESS);
-        repository.save(payment.get());
+        updatePaymentStatus(orderId, PaymentStatus.SUCCESS);
         orderClient.paymentOrder(orderId);
     }
 
     public Double calculateProductCost(OrderDto orderDto) {
-        Optional<Payment> payment = repository.findById(orderDto.getPaymentId());
-        if (payment.isEmpty()) {
-            throw new NoPaymentFoundException("Оплата не найдена");
-        }
-
-        return orderDto.getProductPrice() + orderDto.getProductPrice() / 10;
+        findPaymentById(orderDto.getPaymentId()); // Просто проверяем наличие оплаты
+        return orderDto.getProductPrice() * 1.1;
     }
 
     public void failedPayment(UUID orderId) {
-        Optional<Payment> payment = repository.findByOrderId(orderId);
-        if (payment.isEmpty()) {
-            throw new NoPaymentFoundException("Оплата не найдена");
-        }
-
-        payment.get().setStatus(PaymentStatus.FAILED);
-        repository.save(payment.get());
+        updatePaymentStatus(orderId, PaymentStatus.FAILED);
         orderClient.failedPaymentOrder(orderId);
+    }
+
+    private Payment findPaymentById(UUID paymentId) {
+        return repository.findById(paymentId)
+                .orElseThrow(() -> new NoPaymentFoundException("Оплата не найдена"));
+    }
+
+    private void updatePaymentStatus(UUID orderId, PaymentStatus status) {
+        Payment payment = repository.findByOrderId(orderId)
+                .orElseThrow(() -> new NoPaymentFoundException("Оплата не найдена"));
+
+        payment.setStatus(status);
+        repository.save(payment);
     }
 }

@@ -8,7 +8,7 @@ import ru.yandex.practicum.request.ProductReturnRequest;
 
 import java.util.UUID;
 
-@FeignClient(name = "order-client")
+@FeignClient(name = "order-client", path = "/api/v1/order")
 public interface OrderClient {
     @GetMapping
     OrderDto getOrderByUser(@RequestParam String userName);

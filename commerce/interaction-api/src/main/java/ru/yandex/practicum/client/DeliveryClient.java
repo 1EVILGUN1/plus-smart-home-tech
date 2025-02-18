@@ -8,7 +8,7 @@ import ru.yandex.practicum.dto.OrderDto;
 
 import java.util.UUID;
 
-@FeignClient(name = "delivery-client")
+@FeignClient(name = "delivery-client", path = "/api/v1/delivery")
 public interface DeliveryClient {
 
     @PutMapping
