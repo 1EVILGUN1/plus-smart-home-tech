@@ -7,5 +7,5 @@ import ru.yandex.practicum.model.BookedProduct;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface BookedProductMapper {
-    BookedProductDto bookedProductsToDto(BookedProduct bookedProduct);
+    BookedProductDto bookedProductToDto(BookedProduct bookedProduct);
 }
